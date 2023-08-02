@@ -1,1 +1,21 @@
 .DS_Store
+github_credentials.txt
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Yarn Plug'n'Play Installation
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# Dependency directories
+node_modules/
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo

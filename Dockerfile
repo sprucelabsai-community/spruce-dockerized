@@ -4,10 +4,6 @@ FROM ubuntu:20.04
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Input security credentials
-ARG GITHUB_ID
-ARG GITHUB_TOKEN
-
 # Update the system and Install prerequisites
 RUN apt-get update && apt-get install -y \
     apt-utils \
@@ -55,22 +51,35 @@ RUN /bin/bash -c "npm install -g yarn"
 # Install sprucebot
 RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 
-# Set up credentials to git clone private repos
-RUN --mount=type=secret,id=TOKEN \
-    echo "machine github.com login x password $(head -n 1 /run/secrets/TOKEN)" > ~/.netrc && \
-git config \
-    --global \
-    url."https://${GITHUB_ID}:${GITHUB_TOKEN}@github.com/".insteadOf \
-    "https://github.com/"
-
-# Build spruce skills
+#Copy ober build script
 COPY build-spruce-skills.sh /build-spruce-skills.sh
-RUN chmod +x /build-spruce-skills.sh && bin/bash /build-spruce-skills.sh
+RUN chmod +x /build-spruce-skills.sh
+
+# Set up credentials to git clone private repos
+# RUN --mount=type=secret,id=TOKEN \
+#     echo "machine github.com login x password $(head -n 1 /run/secrets/TOKEN)" > ~/.netrc && \
+# git config \
+#     --global \
+#     url."https://${GITHUB_ID}:${GITHUB_TOKEN}@github.com/".insteadOf \
+#     "https://github.com/"
+
+# Copy secrets, pull private repos, delete secrets
+RUN --mount=type=secret,id=github_credentials \
+    GITHUB_USERNAME=$(awk -F ':' '{print $1}' /run/secrets/github_credentials) && \
+    GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
+    echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
+    git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    /bin/bash -c /build-spruce-skills.sh && \
+    rm ~/.netrc && \
+    cd ..
+
+# # Build spruce skills
+# RUN chmod +x /build-spruce-skills.sh && bin/bash /build-spruce-skills.sh
 
 # Copy over run script
 RUN cd ..
 COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
 # Run mongod and sprucebot at runtime
-RUN chmod +x /run.sh
 ENTRYPOINT ["/bin/bash", "-c", "mongod > /dev/null 2>&1 & /run.sh"]
