@@ -61,7 +61,7 @@ cd ..
 
 clear
 
-repos=("spruce-heartwood-skill" "spruce-organization-skill" "spruce-locations-skill" "spruce-calendar-skill" "spruce-jokes-skill" "spruce-people-skill" "spruce-files-skill" "spruce-images-skill" "spruce-reminders-skill" "spruce-feed-skill" "spruce-appointments-skill" "spruce-shifts-skill" "spruce-roles-skill")
+repos=("spruce-heartwood-skill" "spruce-organization-skill" "spruce-locations-skill" "spruce-calendar-skill" "spruce-jokes-skill" "spruce-people-skill" "spruce-files-skill" "spruce-images-skill" "spruce-reminders-skill" "spruce-feed-skill" "spruce-profile-skill" "spruce-appointments-skill" "spruce-shifts-skill" "spruce-roles-skill")
 
 
 clear
@@ -86,8 +86,6 @@ for repo in "${repos[@]}"; do
         echo "DB_CONNECTION_STRING=\"mongodb://localhost:27017\"" >>.env
 
         readableSkill=$(echo "$skill" | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1')
-
-       # spruce set.remote --remote=local && spruce login --phone "${PHONE_NUMBER}" --pin 0000 && spruce register --nameReadable "$readableSkill" --nameKebab "$skill" >/dev/null 2>&1
 
         end_time=$(date +%s)
 
