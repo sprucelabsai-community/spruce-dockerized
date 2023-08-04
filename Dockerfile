@@ -1,9 +1,6 @@
 # Set the base image
 FROM ubuntu:20.04
 
-ARG GITHUB_KEY
-ARG PHONE_NUMBER
-
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,15 +12,18 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     lsb-release \
+    screen \
+    rsync \
     locales \
     python3 \
     python3-pip \
     build-essential \
-    && locale-gen en_US.UTF-8
+    && locale-gen en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install NVM
 ENV NVM_DIR /root/.nvm
-ENV NODE_VERSION lts/*
+ENV NODE_VERSION 18.17.0
 
 # Install nvm with node and npm
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash \
@@ -32,13 +32,12 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | b
     && nvm alias default $NODE_VERSION \
     && nvm use default
 
+# Add node and npm to path so the commands are available
+ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
+ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
+
 # Confirm installation
 RUN /bin/bash -c "source $NVM_DIR/nvm.sh && node -v && npm -v"
-
-# Install Docker
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sh get-docker.sh && \
-    rm get-docker.sh
 
 # Install MongoDB
 RUN wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add - && \
@@ -46,32 +45,41 @@ RUN wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add -
     apt-get update && apt-get install -y mongodb-org && \
     mkdir -p /data/db
 
-# Install Node.js
-# RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
-#    apt-get install -y nodejs 
+# Install yarn
+RUN /bin/bash -c "npm install -g yarn"
 
+# Install sprucebot
+RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 
-# Install Yarn
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+#Copy ober build script
+COPY build-spruce-skills.sh /build-spruce-skills.sh
+RUN chmod +x /build-spruce-skills.sh
 
-RUN apt-get update && apt-get install -y yarn
+# Set up credentials to git clone private repos
+# RUN --mount=type=secret,id=TOKEN \
+#     echo "machine github.com login x password $(head -n 1 /run/secrets/TOKEN)" > ~/.netrc && \
+# git config \
+#     --global \
+#     url."https://${GITHUB_ID}:${GITHUB_TOKEN}@github.com/".insteadOf \
+#     "https://github.com/"
 
-#Install sprucebot
-RUN /bin/bash -c "yarn global add -g @sprucelabs/sprucebot-cli"
+# Copy secrets, pull private repos, delete secrets
+RUN --mount=type=secret,id=github_credentials \
+    GITHUB_USERNAME=$(awk -F ':' '{print $1}' /run/secrets/github_credentials) && \
+    GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
+    echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
+    git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    /bin/bash -c /build-spruce-skills.sh && \
+    rm ~/.netrc && \
+    cd ..
 
-# Revert back to the regular user
-ENV DEBIAN_FRONTEND=dialog
+# # Build spruce skills
+# RUN chmod +x /build-spruce-skills.sh && bin/bash /build-spruce-skills.sh
 
-# This line create a new file and write the value of the SSH_PRIVATE_KEY argument to it
-RUN mkdir ~/.ssh/ \
-    && echo "${GITHUB_KEY}" > ~/.ssh/id_rsa \
-    && chmod 600 ~/.ssh/id_rsa \
-    && ssh-keyscan github.com >> ~/.ssh/known_hosts
+# Copy over run script
+RUN cd ..
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
-RUN service mongodb start && service docker start 
-
-COPY install.sh /install.sh
-RUN chmod +x /install.sh && /install.sh
-
-CMD bin/bash
+# Run mongod and sprucebot at runtime
+ENTRYPOINT ["/bin/bash", "-c", "mongod > /dev/null 2>&1 & /run.sh"]
