@@ -55,14 +55,6 @@ RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 COPY build-spruce-skills.sh /build-spruce-skills.sh
 RUN chmod +x /build-spruce-skills.sh
 
-# Set up credentials to git clone private repos
-# RUN --mount=type=secret,id=TOKEN \
-#     echo "machine github.com login x password $(head -n 1 /run/secrets/TOKEN)" > ~/.netrc && \
-# git config \
-#     --global \
-#     url."https://${GITHUB_ID}:${GITHUB_TOKEN}@github.com/".insteadOf \
-#     "https://github.com/"
-
 # Copy secrets, pull private repos, delete secrets
 RUN --mount=type=secret,id=github_credentials \
     GITHUB_USERNAME=$(awk -F ':' '{print $1}' /run/secrets/github_credentials) && \
@@ -72,9 +64,6 @@ RUN --mount=type=secret,id=github_credentials \
     /bin/bash -c /build-spruce-skills.sh && \
     rm ~/.netrc && \
     cd ..
-
-# # Build spruce skills
-# RUN chmod +x /build-spruce-skills.sh && bin/bash /build-spruce-skills.sh
 
 # Copy over run script
 RUN cd ..
