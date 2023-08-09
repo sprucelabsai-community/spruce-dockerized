@@ -52,6 +52,7 @@ RUN /bin/bash -c "npm install -g yarn"
 RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 
 #Copy ober build script
+COPY skills.txt /skills.txt
 COPY build-spruce-skills.sh /build-spruce-skills.sh
 RUN chmod +x /build-spruce-skills.sh
 
@@ -66,7 +67,6 @@ RUN --mount=type=secret,id=github_credentials \
     cd ..
 
 # Copy over run script
-RUN cd ..
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 

@@ -1,4 +1,4 @@
-
+ 
 
 # Define a function to write an alias
 write_alias() {
@@ -69,7 +69,7 @@ cd ..
 
 echo -e "Setting up spruce skills...this might take a minute...\n"
 
-repos=("spruce-heartwood-skill" "spruce-organization-skill" "spruce-locations-skill" "spruce-calendar-skill" "spruce-jokes-skill" "spruce-people-skill" "spruce-files-skill" "spruce-images-skill" "spruce-reminders-skill" "spruce-feed-skill" "spruce-profile-skill" "spruce-appointments-skill" "spruce-shifts-skill" "spruce-roles-skill")
+readarray -t repos < skills.txt
 
 for repo in "${repos[@]}"; do
     (
@@ -122,7 +122,7 @@ cd "spruce-heartwood-skill" || exit
 yarn build.cdn >>/dev/null 2>&1
 cd ..
 
-echo -e "Heartwood UI finished! Visit: localhost:8080 \n"
+echo -e "Heartwood UI finished! Visit: http://localhost:8080 \n"
 echo -e "Let's rock and roll! 🤘🤘🤘 \n"
 
 bash -c "cd spruce-heartwood-skill/dist && python3 -m http.server 8080"
