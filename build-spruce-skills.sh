@@ -60,8 +60,7 @@ cd ..
 #write_alias "boot-mercury" "cd $(pwd) && yarn boot"
 
 clear
-
-repos=("spruce-heartwood-skill" "spruce-organization-skill" "spruce-locations-skill" "spruce-calendar-skill" "spruce-jokes-skill" "spruce-people-skill" "spruce-files-skill" "spruce-images-skill" "spruce-reminders-skill" "spruce-feed-skill" "spruce-profile-skill" "spruce-appointments-skill" "spruce-shifts-skill" "spruce-roles-skill")
+readarray -t repos < skills.txt
 
 
 clear
@@ -96,7 +95,7 @@ for repo in "${repos[@]}"; do
     ) &
 done
 
-#Wait for all of the git clone yarn action to finish or else it'll finish build before they're done
+#Wait for all of the git clone yarn action to finish or else docker build will finish build before they're done
 wait
 
 echo "Yay! We're almost done. Next we need to build the Heartwood front-end!"
