@@ -27,7 +27,7 @@ cd ..
 
 for skill_dir in *-skill; do
     (
-        skill="\$(echo \${skill_dir} | cut -d '-' -f 2)"
+        skill=$(echo "${skill_dir}" | cut -d '-' -f 2)
 
         echo -e "Registering $skill..."
         cd "$skill_dir" || exit
