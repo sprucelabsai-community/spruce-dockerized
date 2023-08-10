@@ -1,0 +1,16 @@
+{
+	"name": "Base Spruce dev container",
+	"image": "taylumena/sprucebot-platform:latest",
+	"forwardPorts": [8080,8081],
+	"settings": {
+	"terminal.integrated.shell.linux": "/bin/bash"
+	},
+	"overrideCommand": false,
+	"postCreateCommand": "echo 'Container started! It'll need a minute to get up and running. VScode should notify you when it's ready, then check localhost:8080 to verify. The startup logs can be accessed via the docker logs command with the name of the container'",
+	
+	//you will need to create a .env file in the project root directory containing "PHONE_NUMBER=XXX-XXX-XXXX" with your phone number
+	"runArgs": [ 
+		"--env-file",
+		"./.env" 
+	  ]
+}
