@@ -123,7 +123,7 @@ cd "spruce-mercury-api" || exit
 echo "Building Mercury..."
 
 start_time=$(date +%s)
-yarn rebuild
+yarn rebuild &
 end_time=$(date +%s)
 
 if [[ -n "$MERCURY_ENV" && "$MERCURY_ENV" != "default" ]]; then
@@ -157,13 +157,20 @@ skillCount=0
 for repo in "${repos[@]}"; do
 
     (
-        skill="$(echo ${repo} | cut -d '-' -f 2)"
+        # If repo contains a '/', then org is specified; otherwise, use default
+        if [[ "$repo" == */* ]]; then
+            org_repo="$repo"
+        else
+            org_repo="sprucelabsai/$repo"
+        fi
+
+        skill=$(echo "${repo##*/}" | awk -F '-' '{ print $2 }')
 
         echo "Installing $skill"
 
-        git clone https://github.com/sprucelabsai/"$repo".git
+        git clone https://github.com/"$org_repo".git
 
-        cd "$repo" || exit
+        cd "${repo##*/}" || exit
 
         start_time=$(date +%s)
 
@@ -192,7 +199,7 @@ for repo in "${repos[@]}"; do
 
     ((skillCount++))
 
-    if ((skillCount % 2 == 0)); then
+    if ((skillCount % 4 == 0)); then
         wait
     fi
 
