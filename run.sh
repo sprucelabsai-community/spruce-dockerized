@@ -46,7 +46,7 @@ for skill_dir in *-skill; do
 
         echo -e "$readableSkill Installed: $((end_time - start_time)) seconds\n"
         cd ..
-    )
+    ) &
 done
 
 if [ "$SHOULD_UPDATE_PUBLISHED_STATUS" = true ]; then
@@ -70,6 +70,7 @@ if [ "$SHOULD_UPDATE_PUBLISHED_STATUS" = true ]; then
 
 fi
 
+scripts_dir="$HOME/.sprucebot"
 bash $scripts_dir/boot-all-skills-forever
 
 if [ -d "spruce-heartwood-skill/dist" ]; then
