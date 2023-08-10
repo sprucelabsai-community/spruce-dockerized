@@ -3,8 +3,11 @@ FROM ubuntu:20.04
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
-ARG DATABASE_URL=mongodb://localhost:27017
+ARG DB_CONNECTION_STRING=mongodb://localhost:27017
 ARG DATABASE_NAME=default
+ARG SKILLS=default
+ARG SHOULD_SERVE_HEARTWOOD=true
+ARG SKILLS_CONFIG_PATH
 
 # Update the system and Install prerequisites
 RUN apt-get update && apt-get install -y \
@@ -42,7 +45,7 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 RUN /bin/bash -c "source $NVM_DIR/nvm.sh && node -v && npm -v"
 
 # Install MongoDB
-RUN if [ "$DATABASE_URL" = "mongodb://localhost:27017" ] ; then \
+RUN if [ "$DB_CONNECTION_STRING" = "mongodb://localhost:27017" ] ; then \
     wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add - && \
     echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
     apt-get update && apt-get install -y mongodb-org && \
@@ -56,10 +59,25 @@ RUN /bin/bash -c "npm install -g yarn"
 # Install sprucebot
 RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 
-#Copy ober build script
 COPY skills.txt /skills.txt
+RUN if [ "$SKILLS" != "default" ]; then \
+    echo $SKILLS | sed 's/,/\n/g' > /skills.txt; \
+    fi
+
+
+RUN if [ -n "$SKILLS_CONFIG_PATH" ]; then \
+    SHOULD_USE_SKILLS_CONFIG=true; \
+    else \
+    SHOULD_USE_SKILLS_CONFIG=false; \
+    fi
+
+COPY $SKILLS_CONFIG_PATH /skills.json
+
 COPY build.sh /build.sh
 RUN chmod +x /build.sh
+
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
 # Copy secrets, pull private repos, delete secrets
 RUN --mount=type=secret,id=github_credentials \
@@ -67,13 +85,11 @@ RUN --mount=type=secret,id=github_credentials \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c "/build.sh --databaseUrl=$DATABASE_URL --databaseName={DATABASE_NAME" && \
+    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD --shouldUseSkillsConfig=$SHOULD_USE_SKILLS_CONFIG" && \
     rm ~/.netrc && \
     cd ..
 
-# Copy over run script
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
+EXPOSE 8081
 
 # Run mongod and sprucebot at runtime
 ENTRYPOINT ["/bin/bash", "-c", "mongod > /dev/null 2>&1 & /run.sh"]

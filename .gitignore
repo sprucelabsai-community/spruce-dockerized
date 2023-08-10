@@ -1,5 +1,6 @@
 .DS_Store
 github_credentials.txt
+production
 
 # Yarn Integrity file
 .yarn-integrity
