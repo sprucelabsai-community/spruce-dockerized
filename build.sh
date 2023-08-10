@@ -23,8 +23,8 @@ write_script() {
     chmod +x "$script_file"
 }
 
-# Default database connection string
 DATABASE_URL="mongodb://localhost:27017"
+DATABASE_NAME="default"
 
 # Parse arguments
 for arg in "$@"; do
@@ -32,6 +32,10 @@ for arg in "$@"; do
     --databaseUrl=*)
         DATABASE_URL="${arg#*=}"
         shift # Remove --databaseUrl= from processing
+        ;;
+    --databaseName=*)
+        DATABASE_NAME="${arg#*=}"
+        shift # Remove --databaseName= from processing
         ;;
     *)
         # other arguments can be processed here
@@ -91,7 +95,12 @@ for repo in "${repos[@]}"; do
         yarn rebuild >/dev/null 2>&1
         yarn build.dev >/dev/null 2>&1
 
-        echo "DB_NAME=\"$skill\"" >.env
+        if [ "$DATABASE_NAME" != "default" ]; then
+            echo "DB_NAME=\"$DATABASE_NAME\"" >.env
+        else
+            echo "DB_NAME=\"$skill\"" >.env
+        fi
+
         echo "DB_CONNECTION_STRING=\"$DATABASE_URL\"" >>.env
 
         readableSkill=$(echo "$skill" | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1')

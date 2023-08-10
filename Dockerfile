@@ -4,6 +4,7 @@ FROM ubuntu:20.04
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 ARG DATABASE_URL=mongodb://localhost:27017
+ARG DATABASE_NAME=default
 
 # Update the system and Install prerequisites
 RUN apt-get update && apt-get install -y \
@@ -66,7 +67,7 @@ RUN --mount=type=secret,id=github_credentials \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c "/build.sh --databaseUrl=$DATABASE_URL" && \
+    /bin/bash -c "/build.sh --databaseUrl=$DATABASE_URL --databaseName={DATABASE_NAME" && \
     rm ~/.netrc && \
     cd ..
 
