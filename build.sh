@@ -1,4 +1,3 @@
-
 # Define a function to write an alias
 write_alias() {
     local alias_name=$1
@@ -15,7 +14,6 @@ write_alias() {
     echo -e "Done!\n\nRun '$alias_name' in another terminal!"
 }
 
-
 # Define a function to write a script to a file
 write_script() {
     local script_name=$1
@@ -25,11 +23,27 @@ write_script() {
     chmod +x "$script_file"
 }
 
+# Default database connection string
+DATABASE_URL="mongodb://localhost:27017"
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+    --databaseUrl=*)
+        DATABASE_URL="${arg#*=}"
+        shift # Remove --databaseUrl= from processing
+        ;;
+    *)
+        # other arguments can be processed here
+        shift # Remove generic argument from processing
+        ;;
+    esac
+done
 
 # Clone the mercury repository and set it up
 if [ ! -d "spruce-mercury-api" ]; then
     echo "Cloning Mercury..."
-    git clone https://github.com/sprucelabsai/spruce-mercury-api.git >>/dev/null 2>&1
+    git clone https://github.com/sprucelabsai/spruce-mercury-api.git
     cd "spruce-mercury-api" || exit
     echo "Building Mercury..."
     start_time=$(date +%s)
@@ -56,12 +70,8 @@ fi
 
 cd ..
 
-#echo -e "Ok, Mercury is ready to rock!\n\n"
-#write_alias "boot-mercury" "cd $(pwd) && yarn boot"
-
 clear
-readarray -t repos < skills.txt
-
+readarray -t repos <skills.txt
 
 clear
 echo -e "Installing skills... This will take a few minutes depending on your internet connection and computer speed....\n\n"
@@ -82,7 +92,7 @@ for repo in "${repos[@]}"; do
         yarn build.dev >/dev/null 2>&1
 
         echo "DB_NAME=\"$skill\"" >.env
-        echo "DB_CONNECTION_STRING=\"mongodb://localhost:27017\"" >>.env
+        echo "DB_CONNECTION_STRING=\"$DATABASE_URL\"" >>.env
 
         readableSkill=$(echo "$skill" | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1')
 
@@ -102,7 +112,6 @@ echo "Yay! We're almost done. Next we need to build the Heartwood front-end!"
 
 cd "spruce-heartwood-skill" || exit
 yarn build.cdn >>/dev/null 2>&1
-
 
 write_alias "serve-heartwood" "cd $(pwd) && python3 -m http.server 8080"
 

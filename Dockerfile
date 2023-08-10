@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
+ARG DATABASE_URL=mongodb://localhost:27017
 
 # Update the system and Install prerequisites
 RUN apt-get update && apt-get install -y \
@@ -40,10 +41,13 @@ ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
 RUN /bin/bash -c "source $NVM_DIR/nvm.sh && node -v && npm -v"
 
 # Install MongoDB
-RUN wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add - && \
+RUN if [ "$DATABASE_URL" = "mongodb://localhost:27017" ] ; then \
+    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add - && \
     echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
     apt-get update && apt-get install -y mongodb-org && \
-    mkdir -p /data/db
+    mkdir -p /data/db ; \
+    fi
+
 
 # Install yarn
 RUN /bin/bash -c "npm install -g yarn"
@@ -53,8 +57,8 @@ RUN /bin/bash -c "yarn global add @sprucelabs/spruce-cli"
 
 #Copy ober build script
 COPY skills.txt /skills.txt
-COPY build-spruce-skills.sh /build-spruce-skills.sh
-RUN chmod +x /build-spruce-skills.sh
+COPY build.sh /build.sh
+RUN chmod +x /build.sh
 
 # Copy secrets, pull private repos, delete secrets
 RUN --mount=type=secret,id=github_credentials \
@@ -62,7 +66,7 @@ RUN --mount=type=secret,id=github_credentials \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c /build-spruce-skills.sh && \
+    /bin/bash -c "/build.sh --databaseUrl=$DATABASE_URL" && \
     rm ~/.netrc && \
     cd ..
 
