@@ -3,11 +3,12 @@ FROM ubuntu:20.04
 
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
+ENV SHOULD_USE_SKILLS_CONFIG=false
 ARG DB_CONNECTION_STRING=mongodb://localhost:27017
 ARG DATABASE_NAME=default
 ARG SKILLS=default
 ARG SHOULD_SERVE_HEARTWOOD=true
-ARG SKILLS_CONFIG_PATH
+ARG SKILLS_ENV_CONFIG_PATH
 
 # Update the system and Install prerequisites
 RUN apt-get update && apt-get install -y \
@@ -22,7 +23,16 @@ RUN apt-get update && apt-get install -y \
     locales \
     python3 \
     python3-pip \
+    pkg-config \
+    libpixman-1-dev \
     build-essential \
+    libcairo2-dev \
+    libjpeg-dev \
+    libpango1.0-dev \
+    libgif-dev \
+    build-essential g++ \
+    redis \
+    jq \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -64,14 +74,9 @@ RUN if [ "$SKILLS" != "default" ]; then \
     echo $SKILLS | sed 's/,/\n/g' > /skills.txt; \
     fi
 
+RUN echo "SKILLS_ENV_CONFIG_PATH=${SKILLS_ENV_CONFIG_PATH}"
 
-RUN if [ -n "$SKILLS_CONFIG_PATH" ]; then \
-    SHOULD_USE_SKILLS_CONFIG=true; \
-    else \
-    SHOULD_USE_SKILLS_CONFIG=false; \
-    fi
-
-COPY $SKILLS_CONFIG_PATH /skills.json
+COPY ${SKILLS_ENV_CONFIG_PATH} /skills_env_config.json
 
 COPY build.sh /build.sh
 RUN chmod +x /build.sh
@@ -85,11 +90,13 @@ RUN --mount=type=secret,id=github_credentials \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD --shouldUseSkillsConfig=$SHOULD_USE_SKILLS_CONFIG" && \
+    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD $(if [ -n \"$SKILLS_ENV_CONFIG_PATH\" ]; then echo \"--skillsEnvConfigPath=/skills_env_config.json\"; fi)" && \
     rm ~/.netrc && \
     cd ..
 
 EXPOSE 8081
+EXPOSE 8080
 
 # Run mongod and sprucebot at runtime
 ENTRYPOINT ["/bin/bash", "-c", "mongod > /dev/null 2>&1 & /run.sh"]
+

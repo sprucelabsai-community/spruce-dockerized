@@ -1,4 +1,5 @@
-# Define a function to write an alias
+set -e
+
 write_alias() {
     local alias_name=$1
     local alias_command=$2
@@ -14,7 +15,6 @@ write_alias() {
     echo -e "Done!"
 }
 
-# Define a function to write a script to a file
 write_script() {
     local script_name=$1
     local script_content=$2
@@ -27,14 +27,12 @@ DB_CONNECTION_STRING="mongodb://localhost:27017"
 DATABASE_NAME="default"
 SHOULD_SERVE_HEARTWOOD=true
 MERCURY_ENV="default"
-SKILLS_CONFIG=""
-SHOULD_USE_SKILLS_CONFIG=false
 
 # Parse arguments
 for arg in "$@"; do
     case $arg in
     --databaseConnectionString=*)
-        DB_CONNECTION_STRING="${arg#*=}"SHOULD
+        DB_CONNECTION_STRING="${arg#*=}"
         shift
         ;;
     --databaseName=*)
@@ -45,12 +43,8 @@ for arg in "$@"; do
         SHOULD_SERVE_HEARTWOOD="${arg#*=}"
         shift
         ;;
-    --skillsConfig=*)
-        SKILLS_CONFIG="${arg#*=}"
-        shift
-        ;;
-    --shouldUseSkillsConfig=*)
-        SHOULD_USE_SKILLS_CONFIG="${arg#*=}"
+    --skillsEnvConfigPath=*)
+        SKILLS_ENV_CONFIG_PATH="${arg#*=}"
         shift
         ;;
     --mercuryEnv=*)
@@ -63,13 +57,18 @@ for arg in "$@"; do
     esac
 done
 
+curl -s -O -L https://github.com/stackdumper/npm-cache-proxy/releases/download/1.3.3/ncp_linux_amd64
+chmod +x ncp_linux_amd64
+./ncp_linux_amd64 --listen ":28080" &
+NCP_PID=$!
+
 scripts_dir="$HOME/.sprucebot"
 
 # Create scripts directory
 mkdir -p "$scripts_dir"
 
 # Write the scripts
-echo -e "Writing boot-all-skills-forever script to $scripts_dir/boot-all-skills-forever...\n"
+echo "Writing boot-all-skills-forever script...s"
 cat <<EOF >"$scripts_dir/boot-all-skills-forever"
 #!/usr/bin/env bash
 
@@ -88,7 +87,7 @@ for skill_dir in *-skill; do
 done
 EOF
 
-echo "Writing boot-skill-forever script to $scripts_dir/boot-skill-forever..."
+echo "Writing boot-skill-forever script...."
 cat <<EOF >"$scripts_dir/boot-skill-forever"
 #!/usr/bin/env bash
 
@@ -108,22 +107,25 @@ chmod +x "$scripts_dir/boot-skill-forever"
 write_alias "boot-skill-forever" "bash $scripts_dir/boot-skill-forever"
 write_alias "boot-all-skills-forever" "bash $scripts_dir/boot-all-skills-forever"
 
+echo "Scripts written."
+
 mkdir platform
 cd platform
+
+echo "Created platform directory"
 
 DB_URL="$DB_CONNECTION_STRING"
 [ "$DATABASE_NAME" == "default" ] && DB_NAME="mercury" || DB_NAME="$DATABASE_NAME"
 
-echo "Cloning Mercury..."
+echo "Installing Mercury..."
 
 git clone https://github.com/sprucelabsai/spruce-mercury-api.git
 
 cd "spruce-mercury-api" || exit
 
-echo "Building Mercury..."
-
 start_time=$(date +%s)
-yarn rebuild &
+yarn
+(yarn build.dev &) >/dev/null
 end_time=$(date +%s)
 
 if [[ -n "$MERCURY_ENV" && "$MERCURY_ENV" != "default" ]]; then
@@ -143,71 +145,72 @@ SHOULD_ENABLE_LLM=false
 EOF
 fi
 
-echo "Done: $((end_time - start_time)) seconds."
-
 cd ..
+
+echo "Loading skills..."
 
 readarray -t repos <../skills.txt
 
-clear
-echo -e "Installing skills... This will take a few minutes depending on your internet connection and computer speed....\n\n"
+echo "Found ${#repos[@]} skills"
 
-skillCount=0
+start_time=$(date +%s)
 
 for repo in "${repos[@]}"; do
 
-    (
-        # If repo contains a '/', then org is specified; otherwise, use default
-        if [[ "$repo" == */* ]]; then
-            org_repo="$repo"
-        else
-            org_repo="sprucelabsai/$repo"
-        fi
-
-        skill=$(echo "${repo##*/}" | awk -F '-' '{ print $2 }')
-
-        echo "Installing $skill"
-
-        git clone https://github.com/"$org_repo".git
-
-        cd "${repo##*/}" || exit
-
-        start_time=$(date +%s)
-
-        yarn rebuild
-
-        if [ "$SHOULD_USE_SKILLS_CONFIG" = true ] && [ -n "$SKILLS_CONFIG" ]; then
-            DB_NAME=$(jq -r ".\"$skill\".dbName" /skills.json)
-            DB_CONNECTION_STRING=$(jq -r ".\"$skill\".dbConnectionString" /skills.json)
-        else
-            if [ "$DATABASE_NAME" != "default" ]; then
-                DB_NAME="$DATABASE_NAME"
-            else
-                DB_NAME="$skill"
-            fi
-        fi
-
-        readableSkill=$(echo "$skill" | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1')
-
-        end_time=$(date +%s)
-
-        echo "$readableSkill Installed: $((end_time - start_time)) seconds"
-        echo "Continuing installation..."
-
-        cd ..
-    ) &
-
-    ((skillCount++))
-
-    if ((skillCount % 4 == 0)); then
-        wait
+    if [[ "$repo" == */* ]]; then
+        org_repo="$repo"
+    else
+        org_repo="sprucelabsai/$repo"
     fi
+
+    skill=$(echo "${repo##*/}" | awk -F '-' '{ print $2 }')
+
+    echo "Installing $skill..."
+
+    git clone https://github.com/"$org_repo".git
+
+    cd "${repo##*/}" || exit
+
+    yarn >/dev/null
+    (yarn build.dev &) >/dev/null
+
+    echo "Done with rebuild"
+
+    if [ -n "$SKILLS_ENV_CONFIG_PATH" ]; then
+        echo "Loading skills env config ${SKILLS_ENV_CONFIG_PATH}"
+        if [ ! -f "$SKILLS_ENV_CONFIG_PATH" ]; then
+            echo "Error: File not found at ${SKILLS_ENV_CONFIG_PATH}"
+            exit 1
+        fi
+        skill_config=$(jq -r ".$skill" $SKILLS_ENV_CONFIG_PATH)
+        if [ -z "$skill_config" ]; then
+            echo "Error: Skill config not found for $skill"
+            exit 1
+        fi
+        echo "$skill_config" | jq -r 'to_entries[] | .key + "=\"" + .value + "\"" ' >>.env
+        echo "Env generated from config"
+    else
+        if [ "$DATABASE_NAME" != "default" ]; then
+            echo "DB_NAME=\"$DATABASE_NAME\"" >>.env
+        else
+            echo "DB_NAME=\"$skill\"" >>.env
+        fi
+        echo "DB_CONNECTION_STRING=\"$DB_CONNECTION_STRING\"" >>.env
+    fi
+
+    readableSkill=$(echo "$skill" | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($0,i,1)),$i)}1')
+
+    end_time=$(date +%s)
+
+    echo "$readableSkill done: $((end_time - start_time)) seconds"
+
+    cd ..
 
 done
 
-clear
-echo "Building everything..."
+echo "Waiting for last skills to be installed..."
 
+kill $NCP_PID || true
 wait
 
 if [ "$SHOULD_SERVE_HEARTWOOD" = true ]; then
@@ -224,4 +227,4 @@ else
     write_alias "serve-heartwood" "echo 'Heartwood serve skipped'"
 fi
 
-echo -e "Installation completed!\n"
+echo -e "Installation complete!"
