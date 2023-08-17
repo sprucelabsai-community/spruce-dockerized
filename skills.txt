@@ -8,6 +8,7 @@ spruce-files-skill
 spruce-images-skill
 spruce-reminders-skill
 spruce-feed-skill
+spruce-forms-skill
 spruce-profile-skill
 spruce-appointments-skill
 spruce-shifts-skill

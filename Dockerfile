@@ -74,10 +74,6 @@ RUN if [ "$SKILLS" != "default" ]; then \
     echo $SKILLS | sed 's/,/\n/g' > /skills.txt; \
     fi
 
-RUN echo "SKILLS_ENV_CONFIG_PATH=${SKILLS_ENV_CONFIG_PATH}"
-
-COPY ${SKILLS_ENV_CONFIG_PATH} /skills_env_config.json
-
 COPY build.sh /build.sh
 RUN chmod +x /build.sh
 
@@ -90,7 +86,7 @@ RUN --mount=type=secret,id=github_credentials \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD $(if [ -n \"$SKILLS_ENV_CONFIG_PATH\" ]; then echo \"--skillsEnvConfigPath=/skills_env_config.json\"; fi)" && \
+    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD --skillsEnvConfigPath=$SKILLS_ENV_CONFIG_PATH" && \
     rm ~/.netrc && \
     cd ..
 

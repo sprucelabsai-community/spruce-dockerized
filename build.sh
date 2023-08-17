@@ -67,6 +67,8 @@ scripts_dir="$HOME/.sprucebot"
 # Create scripts directory
 mkdir -p "$scripts_dir"
 
+echo "SKILLS_ENV_CONFIG_PATH=$SKILLS_ENV_CONFIG_PATH"
+
 # Write the scripts
 echo "Writing boot-all-skills-forever script...s"
 cat <<EOF >"$scripts_dir/boot-all-skills-forever"
