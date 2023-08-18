@@ -1,31 +1,18 @@
 set -e
 
-write_alias() {
-    local alias_name=$1
-    local alias_command=$2
-    local shellrc="$HOME/.bashrc"
-    if [[ $SHELL == *"zsh"* ]]; then
-        shellrc="$HOME/.zshrc"
-    elif [[ $SHELL == *"fish"* ]]; then
-        shellrc="$HOME/.config/fish/config.fish"
-    elif [[ $SHELL == *"csh"* ]]; then
-        shellrc="$HOME/.cshrc"
-    fi
-    echo "alias $alias_name='$alias_command'" >>"$shellrc"
-    echo -e "Done!"
-}
+scripts_dir="$HOME/.sprucebot"
 
 write_script() {
     local script_name=$1
     local script_content=$2
-    local script_file="$script_dir/$script_name.sh"
+    local script_file="$scripts_dir/$script_name"
     echo "$script_content" >"$script_file"
     chmod +x "$script_file"
 }
 
 DB_CONNECTION_STRING="mongodb://localhost:27017"
 DATABASE_NAME="default"
-SHOULD_SERVE_HEARTWOOD=true
+SHOULD_SERVE_HEARTWOOD="true"
 MERCURY_ENV="default"
 
 # Parse arguments
@@ -62,15 +49,13 @@ chmod +x ncp_linux_amd64
 ./ncp_linux_amd64 --listen ":28080" &
 NCP_PID=$!
 
-scripts_dir="$HOME/.sprucebot"
-
 # Create scripts directory
 mkdir -p "$scripts_dir"
 
 echo "SKILLS_ENV_CONFIG_PATH=$SKILLS_ENV_CONFIG_PATH"
 
 # Write the scripts
-echo "Writing boot-all-skills-forever script...s"
+echo "Writing boot-all-skills-forever script..."
 cat <<EOF >"$scripts_dir/boot-all-skills-forever"
 #!/usr/bin/env bash
 
@@ -105,9 +90,6 @@ EOF
 # Make the scripts executable
 chmod +x "$scripts_dir/boot-all-skills-forever"
 chmod +x "$scripts_dir/boot-skill-forever"
-
-write_alias "boot-skill-forever" "bash $scripts_dir/boot-skill-forever"
-write_alias "boot-all-skills-forever" "bash $scripts_dir/boot-all-skills-forever"
 
 echo "Scripts written."
 
@@ -215,18 +197,18 @@ echo "Waiting for last skills to be installed..."
 kill $NCP_PID || true
 wait
 
-if [ "$SHOULD_SERVE_HEARTWOOD" = true ]; then
+if [ "$SHOULD_SERVE_HEARTWOOD" = "true" ]; then
     echo "Yay! We're almost done"
     echo "Next we need to build the Heartwood front-end!"
 
     cd "spruce-heartwood-skill" || exit
-    yarn build.cdn
 
-    write_alias "serve-heartwood" "echo 'Heartwod Serving at http://localhost:8080' && cd $(pwd) && python3 -m http.server 8080"
+    yarn build.cdn >/dev/null
 
-    scripts_dir="$HOME/.sprucebot"
+    write_script "serve-heartwood" "echo \"Heartwood Serving at http://localhost:8080\" && cd $(pwd)/dist && python3 -m http.server 8080"
 else
-    write_alias "serve-heartwood" "echo 'Heartwood serve skipped'"
+    echo "Skipping serve-heartwood"
+    write_script "serve-heartwood" "echo \"Heartwood serve skipped\""
 fi
 
 echo -e "Installation complete!"

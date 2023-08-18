@@ -58,15 +58,15 @@ for skill_dir in *-skill; do
     fi
 
     if [ "$WILL_BOOT_ACTION" = "register" ]; then
-        spruce register --nameReadable "$readableSkill" --nameKebab "$skill" &
+        (spruce register --nameReadable "$readableSkill" --nameKebab "$skill" >/dev/null) &
     fi
 
     if [ "$WILL_BOOT_ACTION" = "login" ]; then
-        spruce login.skill --skillSlug "$skill" &
+        (spruce login.skill --skillSlug "$skill" >/dev/null) &
     fi
 
     if [ "$WILL_BOOT_ACTION" = "build" ]; then
-        yarn build.dev &
+        (yarn build.dev >/dev/null) &
     fi
 
     echo -e "$readableSkill Ready: $((end_time - start_time)) seconds\n"
@@ -97,8 +97,7 @@ if [ "$SHOULD_UPDATE_PUBLISHED_STATUS" = true ]; then
 fi
 
 scripts_dir="$HOME/.sprucebot"
-bash $scripts_dir/boot-all-skills-forever
-
-serve-heartwood
+bash $scripts_dir/boot-all-skills-forever &
+bash $scripts_dir/serve-heartwood &
 
 tail -f /dev/null
