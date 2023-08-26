@@ -80,13 +80,16 @@ RUN chmod +x /build.sh
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
+# optionally copy SKILLS_ENV_CONFIG_PATH
+COPY $SKILLS_ENV_CONFIG_PATH skills_config.json
+
 # Copy secrets, pull private repos, delete secrets
 RUN --mount=type=secret,id=github_credentials \
     GITHUB_USERNAME=$(awk -F ':' '{print $1}' /run/secrets/github_credentials) && \
     GITHUB_TOKEN=$(awk -F ':' '{print $2}' /run/secrets/github_credentials) && \
     echo "machine github.com login $GITHUB_USERNAME password $GITHUB_TOKEN" > ~/.netrc && \
     git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD --skillsEnvConfigPath=$SKILLS_ENV_CONFIG_PATH" && \
+    /bin/bash -c "/build.sh --databaseConnectionString=$DB_CONNECTION_STRING --databaseName=$DATABASE_NAME --shouldServeHeartwood=$SHOULD_SERVE_HEARTWOOD --skillsEnvConfigPath=skills_config.json" && \
     rm ~/.netrc && \
     cd ..
 

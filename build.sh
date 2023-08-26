@@ -109,7 +109,7 @@ cd "spruce-mercury-api" || exit
 
 start_time=$(date +%s)
 yarn
-(yarn build.dev &) >/dev/null
+(yarn build.dev &)
 end_time=$(date +%s)
 
 if [[ -n "$MERCURY_ENV" && "$MERCURY_ENV" != "default" ]]; then
@@ -155,17 +155,13 @@ for repo in "${repos[@]}"; do
 
     cd "${repo##*/}" || exit
 
-    yarn >/dev/null
-    (yarn build.dev &) >/dev/null
+    yarn
+    (yarn build.dev &)
 
     echo "Done with rebuild"
 
-    if [ -n "$SKILLS_ENV_CONFIG_PATH" ]; then
+    if [ -f "$SKILLS_ENV_CONFIG_PATH" ]; then
         echo "Loading skills env config ${SKILLS_ENV_CONFIG_PATH}"
-        if [ ! -f "$SKILLS_ENV_CONFIG_PATH" ]; then
-            echo "Error: File not found at ${SKILLS_ENV_CONFIG_PATH}"
-            exit 1
-        fi
         skill_config=$(jq -r ".$skill" $SKILLS_ENV_CONFIG_PATH)
         if [ -z "$skill_config" ]; then
             echo "Error: Skill config not found for $skill"
@@ -203,7 +199,7 @@ if [ "$SHOULD_SERVE_HEARTWOOD" = "true" ]; then
 
     cd "spruce-heartwood-skill" || exit
 
-    yarn build.cdn >/dev/null
+    yarn build.cdn
 
     write_script "serve-heartwood" "echo \"Heartwood Serving at http://localhost:8080\" && cd $(pwd)/dist && python3 -m http.server 8080"
 else
