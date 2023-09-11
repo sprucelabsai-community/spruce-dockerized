@@ -123,7 +123,7 @@ MAXIMUM_LOG_PREFIXES_LENGTH=1
 PORT=8081
 ANONYMOUS_PERSON_PHONE=555-000-0000
 DEMO_NUMBERS=*
-ADMIN_NUMBERS=${PHONE_NUMBER}
+ADMIN_NUMBERS=$PHONE_NUMBER
 DEFAULT_SENDER_DELIVERY_MECHANISM=passing
 SHOULD_ENABLE_LLM=false
 EOF
@@ -198,6 +198,8 @@ if [ "$SHOULD_SERVE_HEARTWOOD" = "true" ]; then
     echo "Next we need to build the Heartwood front-end!"
 
     cd "spruce-heartwood-skill" || exit
+
+    echo "HOST=\"http://127.0.0.1:8081\"" >>.env
 
     yarn build.cdn
 
